@@ -70,10 +70,14 @@ func Api(baseUrl string, options ...interface{}) *Resource {
 	if apiInstance.Client == nil {
 		apiInstance.Cookies, _ = cookiejar.New(nil)
 
-		// Skip verify by default?
+		req, _ := http.NewRequest("GET", baseUrl, nil)
+		proxy, _ := http.ProxyFromEnvironment(req)
+
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			Proxy: ProxyFromEnvironment
+		}
+		if proxy != nil {
+			tr.Proxy = http.ProxyURL(proxy)
 		}
 
 		client := &http.Client{
