@@ -27,11 +27,17 @@ type BasicAuth struct {
 	Password string
 }
 
+// OAuth
+type BearerAuth struct {
+	AccessToken string
+}
+
 // Main Api Instance.
 // No Options yet supported.
 type ApiStruct struct {
 	BaseUrl    *url.URL
 	BasicAuth  *BasicAuth
+	BearerAuth *BearerAuth
 	Client     *http.Client
 	Cookies    *cookiejar.Jar
 	PathSuffix string
@@ -46,12 +52,14 @@ func Api(baseUrl string, options ...interface{}) *Resource {
 		panic("Api() - url.Parse(baseUrl) Error:" + err.Error())
 	}
 
-	apiInstance := &ApiStruct{BaseUrl: u, BasicAuth: nil}
+	apiInstance := &ApiStruct{BaseUrl: u, BasicAuth: nil, BearerAuth: nil}
 
 	for _, o := range options {
 		switch v := o.(type) {
 		case *BasicAuth:
 			apiInstance.BasicAuth = v
+		case *BearerAuth:
+			apiInstance.BearerAuth = v
 		case *http.Client:
 			apiInstance.Client = v
 		case string:

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strconv"
 )
@@ -37,6 +38,7 @@ type Resource struct {
 	Headers     http.Header
 	Response    interface{}
 	Raw         *http.Response
+	Logger      Logger
 }
 
 // Creates a new Resource.
@@ -53,7 +55,12 @@ func (r *Resource) Res(options ...interface{}) *Resource {
 		if header == nil {
 			header = http.Header{}
 		}
-		newR := &Resource{Url: url, Api: r.Api, Headers: header}
+		newR := &Resource{
+			Url:     url,
+			Api:     r.Api,
+			Headers: header,
+			Logger:  r.Logger,
+		}
 
 		if len(options) > 1 {
 			newR.Response = options[1]
@@ -81,7 +88,14 @@ func (r *Resource) Id(options ...interface{}) *Resource {
 		if header == nil {
 			header = http.Header{}
 		}
-		newR := &Resource{id: id, Url: url, Api: r.Api, Headers: header, Response: &r.Response}
+		newR := &Resource{
+			id:       id,
+			Url:      url,
+			Api:      r.Api,
+			Headers:  header,
+			Response: &r.Response,
+			Logger:   r.Logger,
+		}
 
 		if len(options) > 1 {
 			newR.Response = options[1]
@@ -109,7 +123,6 @@ func (r *Resource) Get(options ...interface{}) (*Resource, error) {
 		} else {
 			return nil, ErrCantUseAsQuery
 		}
-
 	}
 	return r.do("GET")
 }
@@ -202,10 +215,22 @@ func (r *Resource) do(method string) (*Resource, error) {
 	if r.Api.BasicAuth != nil {
 		req.SetBasicAuth(r.Api.BasicAuth.Username, r.Api.BasicAuth.Password)
 	}
+	if r.Api.BearerAuth != nil {
+		req.Header.Set("Authorization", "Bearer " + r.Api.BearerAuth.AccessToken)
+	}
 
 	if r.Headers != nil {
 		for k, _ := range r.Headers {
 			req.Header.Set(k, r.Headers.Get(k))
+		}
+	}
+
+	if r.Logger != nil {
+		dump, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			r.Logger.Printf("dump request failed: %s", err)
+		} else {
+			r.Logger.Printf("%s", string(dump))
 		}
 	}
 
@@ -216,15 +241,24 @@ func (r *Resource) do(method string) (*Resource, error) {
 
 	r.Raw = resp
 
+	defer resp.Body.Close()
+
+	if r.Logger != nil {
+		dump, err := httputil.DumpResponse(resp, true)
+		if err != nil {
+			r.Logger.Printf("dump response failed: %s", err)
+		} else {
+			r.Logger.Printf("%s", string(dump))
+		}
+	}
+
 	if resp.StatusCode >= 400 {
 		return r, nil
 	}
 
 	for k, _ := range r.Raw.Header {
-		r.SetHeader(k, r.Raw.Header.Get(k));
+		r.SetHeader(k, r.Raw.Header.Get(k))
 	}
-
-	defer resp.Body.Close()
 
 	err = json.NewDecoder(resp.Body).Decode(r.Response)
 	if err != nil {
