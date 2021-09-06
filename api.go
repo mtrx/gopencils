@@ -15,6 +15,7 @@
 package gopencils
 
 import (
+	"errors"
 	"crypto/tls"
 	"net/http"
 	"net/http/cookiejar"
@@ -84,7 +85,24 @@ func Api(baseUrl string, options ...interface{}) *Resource {
 			Transport: tr,
 			Jar:       apiInstance.Cookies,
 		}
+		
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("net/http: retry limit exceeded")
+			}
+			if len(via) == 0 {
+				return nil
+			}
+			for attr, val := range via[0].Header {
+				if _, ok := req.Header[attr]; !ok {
+					req.Header[attr] = val
+				}
+			}
+			return nil
+		}
+
 		apiInstance.Client = client
 	}
 	return &Resource{Url: "", Api: apiInstance}
 }
+
