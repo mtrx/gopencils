@@ -73,6 +73,7 @@ func Api(baseUrl string, options ...interface{}) *Resource {
 		// Skip verify by default?
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			Proxy: ProxyFromEnvironment
 		}
 
 		client := &http.Client{
