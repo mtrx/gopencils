@@ -93,10 +93,8 @@ func Api(baseUrl string, options ...interface{}) *Resource {
 			if len(via) == 0 {
 				return nil
 			}
-			for attr, val := range via[0].Header {
-				if _, ok := req.Header[attr]; !ok {
-					req.Header[attr] = val
-				}
+			for key, val := range via[0].Header {
+				req.Header[key] = val
 			}
 			return nil
 		}
